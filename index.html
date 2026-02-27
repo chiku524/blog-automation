@@ -3,18 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dev Log – Blog Automation Dashboard</title>
+  <title>Dev Log – Public Blog</title>
+  <meta name="description" content="Weekly dev digests from GitHub activity. Professional, intelligent, and humorous.">
+  <link rel="alternate" type="application/rss+xml" title="Dev Log RSS" href="/api/feed">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d0d0f;
-      --surface: #16161a;
-      --surface-hover: #1e1e24;
-      --border: #2a2a32;
-      --text: #e8e8ed;
-      --text-muted: #8888a0;
+      --bg: #0a0a0c;
+      --surface: #121214;
+      --surface-hover: #1a1a1e;
+      --border: #27272a;
+      --text: #fafafa;
+      --text-muted: #71717a;
       --accent: #6366f1;
       --accent-hover: #818cf8;
       --success: #22c55e;
@@ -26,66 +28,34 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      line-height: 1.6;
+      line-height: 1.65;
     }
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem;
-    }
+    .container { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem; }
     header {
       margin-bottom: 2.5rem;
-    }
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.5rem;
-    }
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-    .meta {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-top: 1rem;
-      font-size: 0.875rem;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+    .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; }
+    .nav { display: flex; gap: 1rem; align-items: center; font-size: 0.9rem; }
+    .nav a {
       color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
     }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-    }
-    .badge.live { border-color: var(--success); color: var(--success); }
-    .badge.live::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      background: var(--success);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
+    .nav a:hover { color: var(--accent); }
+    .nav .rss { font-size: 0.85rem; }
+    .list { display: flex; flex-direction: column; gap: 0.5rem; }
     .blog-card {
       display: block;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
       text-decoration: none;
       color: inherit;
       transition: background 0.2s, border-color 0.2s;
@@ -94,11 +64,7 @@
       background: var(--surface-hover);
       border-color: var(--accent);
     }
-    .blog-card .title {
-      font-weight: 600;
-      font-size: 1rem;
-      margin-bottom: 0.35rem;
-    }
+    .blog-card .title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.35rem; }
     .blog-card .date {
       font-size: 0.8rem;
       color: var(--text-muted);
@@ -111,21 +77,40 @@
     }
     .error { color: var(--error); }
     .empty { font-style: italic; }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Dev Log</h1>
-      <p class="subtitle">Weekly digests from your GitHub activity, auto-published every Friday.</p>
-      <div class="meta">
-        <span class="badge live">Live</span>
-        <span>12 repos tracked</span>
+      <div>
+        <h1>Dev Log</h1>
+        <p class="subtitle">Weekly dev digests from GitHub activity. Professional, intelligent, humorous.</p>
       </div>
+      <nav class="nav">
+        <a href="/api/feed" class="rss" title="RSS Feed">RSS</a>
+      </nav>
     </header>
     <div id="content">
       <div class="loading">Loading posts…</div>
     </div>
+    <footer>
+      <a href="/api/feed">RSS Feed</a>
+      <span>·</span>
+      <span>Powered by GitHub + Notion + OpenAI</span>
+    </footer>
   </div>
   <script>
     async function load() {
@@ -139,12 +124,14 @@
           el.innerHTML = '<div class="empty">No posts yet. The first one will appear after the next Friday run.</div>';
           return;
         }
-        el.innerHTML = '<div class="list">' + data.map(b => `
-          <a href="${b.url}" target="_blank" rel="noopener" class="blog-card">
+        el.innerHTML = '<div class="list">' + data.map(b => {
+          const id = (b.id || '').replace(/-/g, '');
+          return `
+          <a href="/post/${id}" class="blog-card">
             <div class="title">${escapeHtml(b.title)}</div>
             <div class="date">${formatDate(b.created_time)}</div>
-          </a>
-        `).join('') + '</div>';
+          </a>`;
+        }).join('') + '</div>';
       } catch (err) {
         el.innerHTML = '<div class="error">Could not load posts. ' + escapeHtml(err.message) + '</div>';
       }

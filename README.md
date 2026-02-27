@@ -108,9 +108,15 @@ Default: `0 14 * * 5` (Fridays at 14:00 UTC). Edit `vercel.json` to change:
 
 Cron format: `minute hour day-of-month month day-of-week` (0 = Sunday, 5 = Friday).
 
-## Dashboard
+## Public Blog & RSS
 
-After deploying, the **dashboard** at `/` lists all blog posts from Notion. Visit your Vercel URL to view and open posts over time.
+After deploying, you get a **public blog**:
+
+- **`/`** – Homepage with post list
+- **`/post/:id`** – Individual post pages (full content from Notion)
+- **`/api/feed`** – RSS 2.0 feed for syndication (Medium, Feedly, etc.)
+
+**Syndicating:** Medium no longer offers direct RSS import, but you can use IFTTT/Zapier to auto-post from your RSS, or manually import from your public blog URL. Dev.to’s API key is at [Settings → Extensions](https://dev.to/settings/extensions); we can add Dev.to auto-publish in a future update.
 
 ## Project Structure
 
@@ -118,6 +124,8 @@ After deploying, the **dashboard** at `/` lists all blog posts from Notion. Visi
 blog-automation/
 ├── api/
 │   ├── blogs.js           # List blog posts from Notion
+│   ├── post.js            # Fetch single post content
+│   ├── feed.js            # RSS 2.0 feed
 │   └── generate-blog.js   # Vercel serverless + cron handler
 ├── config/
 │   └── repos.json         # Repos to track
@@ -125,10 +133,12 @@ blog-automation/
 │   ├── github.js          # Fetch commit activity
 │   ├── ai.js              # Generate post (OpenAI)
 │   ├── notion.js          # Create Notion page
-│   └── notion-list.js     # List child pages from Notion
+│   ├── notion-list.js     # List child pages from Notion
+│   └── notion-content.js  # Fetch page content, convert to HTML
 ├── scripts/
 │   └── generate-blog.js   # CLI runner
-├── index.html             # Dashboard UI
+├── index.html             # Blog homepage
+├── post.html              # Post page template
 ├── vercel.json            # Cron + rewrites
 └── package.json
 ```

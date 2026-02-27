@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">Post – Dev Log</title>
+  <meta name="description" id="page-desc" content="Weekly dev digest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0c;
+      --surface: #121214;
+      --border: #27272a;
+      --text: #fafafa;
+      --text-muted: #71717a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.75;
+    }
+    .container { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem; }
+    .back {
+      display: inline-block;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      transition: color 0.2s;
+    }
+    .back:hover { color: var(--accent); }
+    article {
+      font-size: 1.05rem;
+    }
+    article h1 { font-size: 1.75rem; margin-bottom: 1rem; font-weight: 600; }
+    article h2 { font-size: 1.35rem; margin-top: 2rem; margin-bottom: 0.75rem; }
+    article h3 { font-size: 1.15rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    article p { margin-bottom: 1rem; }
+    article ul, article ol { margin: 0 0 1rem 1.5rem; }
+    article li { margin-bottom: 0.35rem; }
+    article blockquote {
+      border-left: 3px solid var(--accent);
+      margin: 1.5rem 0;
+      padding-left: 1.25rem;
+      color: var(--text-muted);
+    }
+    article pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+    }
+    article code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+      background: var(--surface);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+    article pre code { background: none; padding: 0; }
+    article hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .loading, .error { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+    .error { color: var(--error); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back">← Back to Dev Log</a>
+    <div id="content">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      let id = params.get('id');
+      if (!id && window.location.pathname.startsWith('/post/')) {
+        id = window.location.pathname.replace(/^\/post\//, '').replace(/\/$/, '');
+        if (id && id.length === 32) {
+          id = id.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+        }
+      }
+      if (!id) {
+        document.getElementById('content').innerHTML = '<div class="error">Post not found.</div>';
+        return;
+      }
+      const el = document.getElementById('content');
+      fetch(window.location.origin + '/api/post?id=' + encodeURIComponent(id))
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          document.getElementById('page-title').textContent = data.title + ' – Dev Log';
+          document.getElementById('page-desc').content = data.title;
+          const excerpt = data.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+          if (excerpt) document.getElementById('page-desc').content = excerpt;
+          el.innerHTML = '<article class="post">' + data.html + '</article>';
+        })
+        .catch(err => {
+          el.innerHTML = '<div class="error">' + (err.message || 'Failed to load post') + '</div>';
+        });
+    })();
+  </script>
+</body>
+</html>
