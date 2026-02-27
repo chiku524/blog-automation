@@ -108,21 +108,28 @@ Default: `0 14 * * 5` (Fridays at 14:00 UTC). Edit `vercel.json` to change:
 
 Cron format: `minute hour day-of-month month day-of-week` (0 = Sunday, 5 = Friday).
 
+## Dashboard
+
+After deploying, the **dashboard** at `/` lists all blog posts from Notion. Visit your Vercel URL to view and open posts over time.
+
 ## Project Structure
 
 ```
 blog-automation/
 ├── api/
+│   ├── blogs.js           # List blog posts from Notion
 │   └── generate-blog.js   # Vercel serverless + cron handler
 ├── config/
 │   └── repos.json         # Repos to track
 ├── lib/
 │   ├── github.js          # Fetch commit activity
 │   ├── ai.js              # Generate post (OpenAI)
-│   └── notion.js          # Create Notion page
+│   ├── notion.js          # Create Notion page
+│   └── notion-list.js     # List child pages from Notion
 ├── scripts/
 │   └── generate-blog.js   # CLI runner
-├── vercel.json            # Cron config
+├── index.html             # Dashboard UI
+├── vercel.json            # Cron + rewrites
 └── package.json
 ```
 
