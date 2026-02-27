@@ -12,6 +12,7 @@ import { dirname, join } from "path";
 import { getActivityForRepos } from "../lib/github.js";
 import { generateBlogPost } from "../lib/ai.js";
 import { createNotionPage } from "../lib/notion.js";
+import { publishToDevto } from "../lib/devto.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDryRun = process.argv.includes("--dry-run");
@@ -99,6 +100,23 @@ async function main() {
   });
 
   console.log(`✅ Published to Notion: ${page.url || page.id}`);
+
+  const devtoKey = process.env.DEVTO_API_KEY;
+  if (devtoKey) {
+    try {
+      const baseUrl = process.env.SITE_URL || "https://blog-automation.vercel.app";
+      const canonicalUrl = `${baseUrl}/post/${(page.id || "").replace(/-/g, "")}`;
+      const devto = await publishToDevto({
+        apiKey: devtoKey,
+        title,
+        bodyMarkdown: content,
+        canonicalUrl,
+      });
+      console.log(`✅ Published to Dev.to: ${devto.url}`);
+    } catch (err) {
+      console.error("Dev.to publish error:", err.message);
+    }
+  }
 }
 
 main().catch((err) => {

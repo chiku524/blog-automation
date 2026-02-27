@@ -10,6 +10,7 @@ import { dirname, join } from "path";
 import { getActivityForRepos } from "../lib/github.js";
 import { generateBlogPost } from "../lib/ai.js";
 import { createNotionPage } from "../lib/notion.js";
+import { publishToDevto } from "../lib/devto.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -88,11 +89,34 @@ export default async function handler(req, res) {
       isDatabase,
     });
 
+    let devtoUrl = null;
+    const devtoKey = process.env.DEVTO_API_KEY;
+    if (devtoKey) {
+      try {
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : process.env.SITE_URL || "";
+        const canonicalUrl = baseUrl
+          ? `${baseUrl}/post/${(page.id || "").replace(/-/g, "")}`
+          : undefined;
+        const devto = await publishToDevto({
+          apiKey: devtoKey,
+          title,
+          bodyMarkdown: content,
+          canonicalUrl,
+        });
+        devtoUrl = devto.url;
+      } catch (err) {
+        console.error("Dev.to publish error:", err);
+      }
+    }
+
     return res.status(200).json({
       ok: true,
       title,
       weekLabel,
-      url: page.url || page.id,
+      notionUrl: page.url || page.id,
+      devtoUrl,
       activeRepos: activity.filter((r) => r.hasActivity).length,
     });
   } catch (err) {

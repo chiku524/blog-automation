@@ -53,6 +53,7 @@ Copy `.env.example` to `.env` and fill in your values:
 | `NOTION_PARENT_TYPE` | `page` or `database` (default: `page`) |
 | `OPENAI_API_KEY` | OpenAI API key for content generation |
 | `CRON_SECRET` | (Optional) Secret to protect the cron endpoint |
+| `DEVTO_API_KEY` | (Optional) Dev.to API key – auto-publish to Dev.to ([get key](https://dev.to/settings/extensions)) |
 
 **Notion setup:**
 
