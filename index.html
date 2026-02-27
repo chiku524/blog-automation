@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Log – Blog Automation Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface-hover: #1e1e24;
+      --border: #2a2a32;
+      --text: #e8e8ed;
+      --text-muted: #8888a0;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+    header {
+      margin-bottom: 2.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+    }
+    .badge.live { border-color: var(--success); color: var(--success); }
+    .badge.live::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .blog-card {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .blog-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+    }
+    .blog-card .title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.35rem;
+    }
+    .blog-card .date {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .loading, .error, .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+    .error { color: var(--error); }
+    .empty { font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Dev Log</h1>
+      <p class="subtitle">Weekly digests from your GitHub activity, auto-published every Friday.</p>
+      <div class="meta">
+        <span class="badge live">Live</span>
+        <span>12 repos tracked</span>
+      </div>
+    </header>
+    <div id="content">
+      <div class="loading">Loading posts…</div>
+    </div>
+  </div>
+  <script>
+    async function load() {
+      const el = document.getElementById('content');
+      try {
+        const base = window.location.origin;
+        const res = await fetch(base + '/api/blogs');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load');
+        if (!data.length) {
+          el.innerHTML = '<div class="empty">No posts yet. The first one will appear after the next Friday run.</div>';
+          return;
+        }
+        el.innerHTML = '<div class="list">' + data.map(b => `
+          <a href="${b.url}" target="_blank" rel="noopener" class="blog-card">
+            <div class="title">${escapeHtml(b.title)}</div>
+            <div class="date">${formatDate(b.created_time)}</div>
+          </a>
+        `).join('') + '</div>';
+      } catch (err) {
+        el.innerHTML = '<div class="error">Could not load posts. ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    load();
+  </script>
+</body>
+</html>

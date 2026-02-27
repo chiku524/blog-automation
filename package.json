@@ -1,0 +1,19 @@
+{
+  "name": "blog-automation",
+  "version": "1.0.0",
+  "description": "Automated weekly blog posts based on GitHub repo activity, published to Notion",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node scripts/generate-blog.js",
+    "generate": "node scripts/generate-blog.js",
+    "test": "node scripts/generate-blog.js --dry-run"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "dotenv": "^17.3.1",
+    "openai": "^4.77.0"
+  }
+}

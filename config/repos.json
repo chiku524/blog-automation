@@ -1,0 +1,64 @@
+{
+  "repositories": [
+    {
+      "owner": "chiku524",
+      "repo": "blog-automation",
+      "description": "Automated weekly blog from GitHub activity → Notion"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "motion.productions",
+      "description": "One prompt → one video; procedural engine for video creation"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "boing.observer",
+      "description": "Blockchain explorer for Boing Network"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "boing.express",
+      "description": "Non-custodial Boing wallet (web + browser extension)"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "VibeMiner",
+      "description": "Crypto mining web and desktop app"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "boing.finance",
+      "description": "Boing finance"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "boing-network",
+      "description": "Authentic decentralized L1 blockchain"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "dice.express",
+      "description": "Dice Express"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "the-studio-circus",
+      "description": "The Studio Circus"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "blockchainvibe",
+      "description": "AI-powered blockchain news aggregator"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "bountyhub",
+      "description": "BountyHub"
+    },
+    {
+      "owner": "chiku524",
+      "repo": "solana-micro-paywall",
+      "description": "Multi-chain micro-paywall and pay-per-use platform"
+    }
+  ]
+}
