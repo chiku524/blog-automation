@@ -213,7 +213,9 @@
   </div>
   <script>
     const base = () => window.location.origin;
+    const feedFromUrl = () => (new URLSearchParams(window.location.search).get('feed') || '').trim();
     const feed = () => document.getElementById('feed-select')?.value || '';
+    function getCurrentFeed() { return feedFromUrl() || feed(); }
 
     const FEED_COLORS = [
       '#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6',
@@ -230,7 +232,7 @@
       const el = document.getElementById('content');
       const heading = document.getElementById('posts-heading');
       try {
-        const res = await fetch(base() + '/api/blogs' + (feed() ? '?feed=' + encodeURIComponent(feed()) : ''));
+        const res = await fetch(base() + '/api/blogs' + (getCurrentFeed() ? '?feed=' + encodeURIComponent(getCurrentFeed()) : ''));
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load');
         if (!data.length) {
@@ -238,7 +240,15 @@
           if (heading) heading.style.display = 'none';
           return;
         }
-        if (heading) heading.style.display = 'block';
+        if (heading) {
+          heading.style.display = 'block';
+          const cur = getCurrentFeed();
+          heading.textContent = cur ? (cur === 'generic' ? 'Generic feed' : cur + ' feed') : 'Posts';
+        }
+        if (document.title) {
+          const cur = getCurrentFeed();
+          document.title = cur ? (cur === 'generic' ? 'Generic feed' : cur + ' feed') + ' – Dev Log' : 'Dev Log – Public Blog';
+        }
         el.innerHTML = '<div class="posts-grid">' + data.map((b, i) => {
           const id = (b.id || '').replace(/-/g, '');
           const feedSlug = b.feed || '';
@@ -274,7 +284,7 @@
         const res = await fetch(base() + '/api/feeds');
         const { feeds } = await res.json();
         if (Array.isArray(feeds) && feeds.length > 0 && grid) {
-          const currentFeed = new URLSearchParams(window.location.search).get('feed') || '';
+          const currentFeed = feedFromUrl();
           const allCard = '<a href="' + window.location.pathname + '" class="feed-card" style="border-color: var(--border);' + (!currentFeed ? ' box-shadow: 0 0 0 2px var(--accent);' : '') + '" title="View all posts"><span class="feed-name">All</span><span class="feed-meta">All feeds</span></a>';
           grid.innerHTML = allCard + feeds.map((f, i) => {
             const label = f === 'generic' ? 'Generic' : f.split('/').pop() || f;
@@ -288,7 +298,7 @@
             </a>`;
           }).join('');
 
-          if (feeds.length > 1 && sel) {
+          if (sel) {
             while (sel.options.length > 1) sel.remove(1);
             feeds.forEach(f => {
               const opt = document.createElement('option');
@@ -297,23 +307,27 @@
               sel.appendChild(opt);
             });
             if (currentFeed && feeds.includes(currentFeed)) sel.value = currentFeed;
+            else if (!currentFeed) sel.value = '';
 
-            sel.addEventListener('change', () => {
-              const f = sel.value;
-              const params = new URLSearchParams(window.location.search);
-              if (f) params.set('feed', f); else params.delete('feed');
-              const url = params.toString() ? '?' + params : window.location.pathname;
-              history.replaceState(null, '', url);
-              const rss = document.getElementById('rss-anchor');
-              const rssLink = document.getElementById('rss-link');
-              const href = '/api/feed' + (f ? '?feed=' + encodeURIComponent(f) : '');
-              if (rss) rss.href = href;
-              if (rssLink) rssLink.href = href;
-              initFeeds();
-              load();
-            });
+            if (!sel.dataset.feedListener) {
+              sel.dataset.feedListener = '1';
+              sel.addEventListener('change', () => {
+                const f = sel.value;
+                const params = new URLSearchParams(window.location.search);
+                if (f) params.set('feed', f); else params.delete('feed');
+                const url = params.toString() ? '?' + params : window.location.pathname;
+                history.replaceState(null, '', url);
+                const rss = document.getElementById('rss-anchor');
+                const rssLink = document.getElementById('rss-link');
+                const href = '/api/feed' + (f ? '?feed=' + encodeURIComponent(f) : '');
+                if (rss) rss.href = href;
+                if (rssLink) rssLink.href = href;
+                initFeeds();
+                load();
+              });
+            }
 
-            const rssHref = '/api/feed' + (feed() ? '?feed=' + encodeURIComponent(feed()) : '');
+            const rssHref = '/api/feed' + (getCurrentFeed() ? '?feed=' + encodeURIComponent(getCurrentFeed()) : '');
             const rssAnchor = document.getElementById('rss-anchor');
             const rssLink = document.getElementById('rss-link');
             if (rssAnchor) rssAnchor.href = rssHref;
