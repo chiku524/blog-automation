@@ -38,11 +38,17 @@ export default async function handler(req, res) {
   try {
     const apiKey = getEnv("NOTION_API_KEY");
     const parentId = getEnv("NOTION_BLOG_PARENT_ID");
+    const feed = req.query?.feed || null;
+    const parentType = process.env.NOTION_PARENT_TYPE === "database" ? "database" : "page";
+
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : process.env.SITE_URL || "https://blog-automation.vercel.app";
 
-    const posts = await listChildPages(apiKey, parentId);
+    const posts = await listChildPages(apiKey, parentId, {
+      parentType,
+      feed: feed || undefined,
+    });
     const postIds = (posts || []).slice(0, 20).map((p) => p.id);
 
     const items = await Promise.all(

@@ -19,9 +19,13 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   try {
+    const feed = req.query?.feed || null;
+    const parentType = process.env.NOTION_PARENT_TYPE === "database" ? "database" : "page";
+
     const blogs = await listChildPages(
       getEnv("NOTION_API_KEY"),
-      getEnv("NOTION_BLOG_PARENT_ID")
+      getEnv("NOTION_BLOG_PARENT_ID"),
+      { parentType, feed: feed || undefined }
     );
     return res.status(200).json(blogs);
   } catch (err) {

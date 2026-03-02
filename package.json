@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node scripts/generate-blog.js",
     "generate": "node scripts/generate-blog.js",
-    "test": "node scripts/generate-blog.js --dry-run"
+    "test": "node scripts/generate-blog.js --dry-run",
+    "setup-notion-db": "node scripts/setup-notion-database.js"
   },
   "dependencies": {
     "@notionhq/client": "^2.2.15",

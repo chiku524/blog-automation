@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate weekly blog post from GitHub repo activity and publish to Notion.
+ * Generate weekly blog posts: one per repo + one generic summary.
  * Run manually: node scripts/generate-blog.js
  * Or via cron: see api/generate-blog.js (Vercel)
  */
@@ -10,7 +10,7 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { getActivityForRepos } from "../lib/github.js";
-import { generateBlogPost } from "../lib/ai.js";
+import { generateBlogPost, generateRepoBlogPost } from "../lib/ai.js";
 import { createNotionPage } from "../lib/notion.js";
 import { publishToDevto } from "../lib/devto.js";
 
@@ -23,6 +23,10 @@ function getEnv(name) {
     throw new Error(`Missing env: ${name}`);
   }
   return v || "placeholder";
+}
+
+function getEnvOptional(name) {
+  return process.env[name] || null;
 }
 
 function getWeekLabel() {
@@ -46,8 +50,12 @@ function extractTitle(content) {
   return `Weekly Dev Digest – ${getWeekLabel()}`;
 }
 
+function repoFeedSlug(repo) {
+  return `${repo.owner}/${repo.repo}`;
+}
+
 async function main() {
-  console.log("📝 Blog automation – generating weekly post...\n");
+  console.log("📝 Blog automation – generating weekly posts (per-repo + generic)...\n");
 
   const configPath = join(__dirname, "..", "config", "repos.json");
   const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -68,51 +76,78 @@ async function main() {
   const activity = await getActivityForRepos(repos, token, since);
   const activeCount = activity.filter((r) => r.hasActivity).length;
 
-  console.log(`Repos with activity: ${activeCount}/${repos.length}`);
+  console.log(`Repos with activity: ${activeCount}/${repos.length}\n`);
 
   const apiKey = getEnv("OPENAI_API_KEY");
-  const content = await generateBlogPost({
-    activeRepos: activity,
-    weekLabel,
-    apiKey,
-  });
-
-  const title = extractTitle(content);
-  console.log(`Generated: "${title}"\n`);
+  const notionKey = getEnv("NOTION_API_KEY");
+  const parentId = getEnv("NOTION_BLOG_PARENT_ID");
+  const genericParentId = getEnvOptional("NOTION_GENERIC_BLOG_PARENT_ID") || parentId;
+  const isDatabase = process.env.NOTION_PARENT_TYPE === "database";
 
   if (isDryRun) {
-    console.log("--- DRY RUN: content preview ---");
-    console.log(content.slice(0, 800) + "...\n");
+    console.log("--- DRY RUN ---");
+    for (const repo of activity) {
+      const content = await generateRepoBlogPost({ repo, weekLabel, apiKey });
+      const title = extractTitle(content);
+      console.log(`[${repoFeedSlug(repo)}] ${title}`);
+    }
+    const genericContent = await generateBlogPost({
+      activeRepos: activity,
+      weekLabel,
+      apiKey,
+    });
+    const genericTitle = extractTitle(genericContent);
+    console.log(`[generic] ${genericTitle}\n`);
     console.log("(Not publishing to Notion)");
     return;
   }
 
-  const notionKey = getEnv("NOTION_API_KEY");
-  const parentId = getEnv("NOTION_BLOG_PARENT_ID");
-  const isDatabase = process.env.NOTION_PARENT_TYPE === "database";
+  for (const repo of activity) {
+    const content = await generateRepoBlogPost({ repo, weekLabel, apiKey });
+    const title = extractTitle(content);
+    const feedSlug = repoFeedSlug(repo);
+    const repoParentId = isDatabase ? parentId : (repo.notion_parent_id || parentId);
 
-  const page = await createNotionPage({
-    apiKey: notionKey,
-    parentId,
-    title,
-    content,
-    isDatabase,
+    const page = await createNotionPage({
+      apiKey: notionKey,
+      parentId: repoParentId,
+      title,
+      content,
+      isDatabase,
+      feed: isDatabase ? feedSlug : undefined,
+    });
+    console.log(`✅ [${feedSlug}] ${title} → ${page.url || page.id}`);
+  }
+
+  const genericContent = await generateBlogPost({
+    activeRepos: activity,
+    weekLabel,
+    apiKey,
   });
+  const genericTitle = extractTitle(genericContent);
 
-  console.log(`✅ Published to Notion: ${page.url || page.id}`);
+  const genericPage = await createNotionPage({
+    apiKey: notionKey,
+    parentId: isDatabase ? parentId : genericParentId,
+    title: genericTitle,
+    content: genericContent,
+    isDatabase,
+    feed: isDatabase ? "generic" : undefined,
+  });
+  console.log(`✅ [generic] ${genericTitle} → ${genericPage.url || genericPage.id}`);
 
   const devtoKey = process.env.DEVTO_API_KEY;
   if (devtoKey) {
     try {
       const baseUrl = process.env.SITE_URL || "https://blog-automation.vercel.app";
-      const canonicalUrl = `${baseUrl}/post/${(page.id || "").replace(/-/g, "")}`;
+      const canonicalUrl = `${baseUrl}/post/${(genericPage.id || "").replace(/-/g, "")}`;
       const devto = await publishToDevto({
         apiKey: devtoKey,
-        title,
-        bodyMarkdown: content,
+        title: genericTitle,
+        bodyMarkdown: genericContent,
         canonicalUrl,
       });
-      console.log(`✅ Published to Dev.to: ${devto.url}`);
+      console.log(`✅ Published generic to Dev.to: ${devto.url}`);
     } catch (err) {
       console.error("Dev.to publish error:", err.message);
     }

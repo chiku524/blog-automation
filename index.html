@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dev Log – Public Blog</title>
   <meta name="description" content="Weekly dev digests from GitHub activity. Professional, intelligent, and humorous.">
-  <link rel="alternate" type="application/rss+xml" title="Dev Log RSS" href="/api/feed">
+  <link rel="alternate" type="application/rss+xml" title="Dev Log RSS" href="/api/feed" id="rss-link">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -49,6 +49,17 @@
     }
     .nav a:hover { color: var(--accent); }
     .nav .rss { font-size: 0.85rem; }
+    .feed-select { display: flex; align-items: center; gap: 0.5rem; }
+    .feed-label { color: var(--text-muted); font-size: 0.9rem; }
+    .feed-select select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
     .list { display: flex; flex-direction: column; gap: 0.5rem; }
     .blog-card {
       display: block;
@@ -100,7 +111,13 @@
         <p class="subtitle">Weekly dev digests from GitHub activity. Professional, intelligent, humorous.</p>
       </div>
       <nav class="nav">
-        <a href="/api/feed" class="rss" title="RSS Feed">RSS</a>
+        <label class="feed-select">
+          <span class="feed-label">Feed:</span>
+          <select id="feed-select" title="Filter by feed">
+            <option value="">All feeds</option>
+          </select>
+        </label>
+        <a href="/api/feed" class="rss" id="rss-anchor" title="RSS Feed">RSS</a>
       </nav>
     </header>
     <div id="content">
@@ -113,11 +130,13 @@
     </footer>
   </div>
   <script>
+    const base = () => window.location.origin;
+    const feed = () => document.getElementById('feed-select')?.value || '';
+
     async function load() {
       const el = document.getElementById('content');
       try {
-        const base = window.location.origin;
-        const res = await fetch(base + '/api/blogs');
+        const res = await fetch(base() + '/api/blogs' + (feed() ? '?feed=' + encodeURIComponent(feed()) : ''));
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load');
         if (!data.length) {
@@ -145,7 +164,50 @@
       const d = new Date(iso);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
-    load();
+
+    async function initFeeds() {
+      const sel = document.getElementById('feed-select');
+      if (!sel) return;
+      try {
+        const res = await fetch(base() + '/api/feeds');
+        const { feeds } = await res.json();
+        if (Array.isArray(feeds) && feeds.length > 1) {
+          feeds.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f === 'generic' ? 'Generic (all repos)' : f;
+            sel.appendChild(opt);
+          });
+          const q = new URLSearchParams(window.location.search).get('feed');
+          if (q && feeds.includes(q)) sel.value = q;
+
+          sel.addEventListener('change', () => {
+            const f = sel.value;
+            const params = new URLSearchParams(window.location.search);
+            if (f) params.set('feed', f); else params.delete('feed');
+            const url = params.toString() ? '?' + params : window.location.pathname;
+            history.replaceState(null, '', url);
+            const rss = document.getElementById('rss-anchor');
+            const rssLink = document.getElementById('rss-link');
+            const href = '/api/feed' + (f ? '?feed=' + encodeURIComponent(f) : '');
+            if (rss) rss.href = href;
+            if (rssLink) rssLink.href = href;
+            load();
+          });
+
+          const rssHref = '/api/feed' + (feed() ? '?feed=' + encodeURIComponent(feed()) : '');
+          const rssAnchor = document.getElementById('rss-anchor');
+          const rssLink = document.getElementById('rss-link');
+          if (rssAnchor) rssAnchor.href = rssHref;
+          if (rssLink) rssLink.href = rssHref;
+        }
+      } catch (_) {}
+    }
+
+    (async () => {
+      await initFeeds();
+      load();
+    })();
   </script>
 </body>
 </html>

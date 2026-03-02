@@ -1,7 +1,7 @@
 /**
- * Vercel serverless function – generates weekly blog posts.
- * Creates: one post per repo + one generic summary post.
- * Triggered by cron (Fridays) or manually with CRON_SECRET.
+ * Vercel serverless function – generates a daily generic blog post.
+ * Uses last 24 hours of activity across all repos; creates one post (Feed=generic).
+ * Triggered by cron (every day) or manually with CRON_SECRET.
  */
 
 import "dotenv/config";
@@ -9,7 +9,7 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { getActivityForRepos } from "../lib/github.js";
-import { generateBlogPost, generateRepoBlogPost } from "../lib/ai.js";
+import { generateDailyBlogPost } from "../lib/ai.js";
 import { createNotionPage } from "../lib/notion.js";
 import { publishToDevto } from "../lib/devto.js";
 
@@ -25,26 +25,14 @@ function getEnvOptional(name) {
   return process.env[name] || null;
 }
 
-function getWeekLabel() {
+function getDayLabel() {
   const now = new Date();
-  const day = now.getDay();
-  const diff = day >= 5 ? day - 5 : day + 2;
-  const lastFriday = new Date(now);
-  lastFriday.setDate(now.getDate() - diff);
-  const prevFriday = new Date(lastFriday);
-  prevFriday.setDate(lastFriday.getDate() - 7);
-  const fmt = (d) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return `${fmt(prevFriday)} – ${fmt(lastFriday)}`;
+  return now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function extractTitle(content) {
   const m = content.match(/^#\s+(.+)$/m) || content.match(/^##\s+(.+)$/m);
-  return m ? m[1].trim() : `Weekly Dev Digest – ${getWeekLabel()}`;
-}
-
-function repoFeedSlug(repo) {
-  return `${repo.owner}/${repo.repo}`;
+  return m ? m[1].trim() : `Daily Dev Digest – ${getDayLabel()}`;
 }
 
 export default async function handler(req, res) {
@@ -70,9 +58,9 @@ export default async function handler(req, res) {
       throw new Error("config/repos.json has no repositories");
     }
 
-    const weekLabel = getWeekLabel();
+    const dayLabel = getDayLabel();
     const since = new Date();
-    since.setDate(since.getDate() - 7);
+    since.setDate(since.getDate() - 1);
 
     const activity = await getActivityForRepos(
       repos,
@@ -80,43 +68,22 @@ export default async function handler(req, res) {
       since
     );
 
+    const content = await generateDailyBlogPost({
+      activeRepos: activity,
+      dayLabel,
+      apiKey: getEnv("OPENAI_API_KEY"),
+    });
+
+    const title = extractTitle(content);
     const parentId = getEnv("NOTION_BLOG_PARENT_ID");
     const genericParentId = getEnvOptional("NOTION_GENERIC_BLOG_PARENT_ID") || parentId;
     const isDatabase = process.env.NOTION_PARENT_TYPE === "database";
 
-    const repoPages = [];
-    for (const repo of activity) {
-      const content = await generateRepoBlogPost({
-        repo,
-        weekLabel,
-        apiKey: getEnv("OPENAI_API_KEY"),
-      });
-      const title = extractTitle(content);
-      const feedSlug = repoFeedSlug(repo);
-      const repoParentId = isDatabase ? parentId : (repo.notion_parent_id || parentId);
-
-      const page = await createNotionPage({
-        apiKey: getEnv("NOTION_API_KEY"),
-        parentId: repoParentId,
-        title,
-        content,
-        isDatabase,
-        feed: isDatabase ? feedSlug : undefined,
-      });
-      repoPages.push({ repo: feedSlug, title, notionUrl: page.url || page.id });
-    }
-
-    const genericContent = await generateBlogPost({
-      activeRepos: activity,
-      weekLabel,
-      apiKey: getEnv("OPENAI_API_KEY"),
-    });
-    const genericTitle = extractTitle(genericContent);
-    const genericPage = await createNotionPage({
+    const page = await createNotionPage({
       apiKey: getEnv("NOTION_API_KEY"),
       parentId: isDatabase ? parentId : genericParentId,
-      title: genericTitle,
-      content: genericContent,
+      title,
+      content,
       isDatabase,
       feed: isDatabase ? "generic" : undefined,
     });
@@ -129,12 +96,12 @@ export default async function handler(req, res) {
           ? `https://${process.env.VERCEL_URL}`
           : process.env.SITE_URL || "";
         const canonicalUrl = baseUrl
-          ? `${baseUrl}/post/${(genericPage.id || "").replace(/-/g, "")}`
+          ? `${baseUrl}/post/${(page.id || "").replace(/-/g, "")}`
           : undefined;
         const devto = await publishToDevto({
           apiKey: devtoKey,
-          title: genericTitle,
-          bodyMarkdown: genericContent,
+          title,
+          bodyMarkdown: content,
           canonicalUrl,
         });
         devtoUrl = devto.url;
@@ -145,15 +112,16 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      weekLabel,
-      repoPages,
-      genericPost: { title: genericTitle, notionUrl: genericPage.url || genericPage.id, devtoUrl },
+      dayLabel,
+      title,
+      notionUrl: page.url || page.id,
+      devtoUrl,
       activeRepos: activity.filter((r) => r.hasActivity).length,
     });
   } catch (err) {
-    console.error("Blog generation error:", err);
+    console.error("Daily blog generation error:", err);
     return res
       .status(500)
-      .json({ error: err.message || "Blog generation failed" });
+      .json({ error: err.message || "Daily blog generation failed" });
   }
 }

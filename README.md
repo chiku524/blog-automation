@@ -5,8 +5,12 @@ Automated weekly blog posts (every Friday) based on GitHub repository activity. 
 ## How It Works
 
 1. **GitHub** – Checks commits in your configured repos for the past 7 days
-2. **OpenAI** – Generates a blog post from active repos with a witty, professional tone
-3. **Notion** – Creates a new page in your Notion workspace
+2. **OpenAI** – Generates blog posts with a witty, professional tone
+3. **Notion** – Creates new pages in your Notion workspace
+
+**Posts generated each week:**
+- **Per-repo posts** – One dedicated post per repository (with activity or “quiet week” style)
+- **Generic post** – One summary post aggregating all repo activity (the “Week the Codebase…” style)
 
 ## Security
 
@@ -51,9 +55,10 @@ Copy `.env.example` to `.env` and fill in your values:
 | `NOTION_API_KEY` | Notion [Internal Integration](https://www.notion.so/my-integrations) secret |
 | `NOTION_BLOG_PARENT_ID` | Page or database ID where posts will be created |
 | `NOTION_PARENT_TYPE` | `page` or `database` (default: `page`) |
+| `NOTION_GENERIC_BLOG_PARENT_ID` | (Optional) Separate parent for the generic summary post (page mode only) |
 | `OPENAI_API_KEY` | OpenAI API key for content generation |
 | `CRON_SECRET` | (Optional) Secret to protect the cron endpoint |
-| `DEVTO_API_KEY` | (Optional) Dev.to API key – auto-publish to Dev.to ([get key](https://dev.to/settings/extensions)) |
+| `DEVTO_API_KEY` | (Optional) Dev.to API key – auto-publish generic post to Dev.to ([get key](https://dev.to/settings/extensions)) |
 
 **Notion setup:**
 
@@ -61,6 +66,13 @@ Copy `.env.example` to `.env` and fill in your values:
 2. Copy the secret (starts with `ntn_`)
 3. Create a page (or database) for blog posts and **share it** with your integration (⋯ → Add connections)
 4. Copy the page/database ID from the URL: `notion.so/workspace/PAGE_ID?v=...`
+
+**Per-feed filtering (optional):** To get separate feeds per repository and a generic feed:
+
+- Set `NOTION_PARENT_TYPE=database`
+- Create a Notion **database** (not a page) and add a **Text** property named `Feed`
+- All posts will be tagged with `Feed` = `owner/repo` or `generic`
+- Use `/api/blogs?feed=chiku524/blog-automation` or `/api/feed?feed=generic` to filter
 
 ### 4. Run Manually
 
@@ -78,23 +90,31 @@ npm run test
 
 1. Connect this repo to [Vercel](https://vercel.com)
 2. Add all env vars in Project Settings → Environment Variables
-3. Deploy – the cron runs **every Friday at 14:00 UTC** (9am EST)
+3. Deploy – crons run **every Friday at 14:00 UTC** (weekly posts) and **every day at 14:00 UTC** (daily generic post).
 
 To trigger manually via HTTP (e.g. for testing):
 
 ```bash
+# Weekly (all repos + generic)
 curl "https://your-app.vercel.app/api/generate-blog?secret=YOUR_CRON_SECRET"
+
+# Daily (generic post only, last 24h activity)
+curl "https://your-app.vercel.app/api/generate-blog-daily?secret=YOUR_CRON_SECRET"
 ```
 
 Or with header:
 
 ```bash
 curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-app.vercel.app/api/generate-blog
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-app.vercel.app/api/generate-blog-daily
 ```
 
 ## Cron Schedule
 
-Default: `0 14 * * 5` (Fridays at 14:00 UTC). Edit `vercel.json` to change:
+- **Weekly** (Fridays 14:00 UTC): `/api/generate-blog` – one post per repo + one generic summary (last 7 days).
+- **Daily** (every day 14:00 UTC): `/api/generate-blog-daily` – one generic post from the last 24 hours of activity across all repos.
+
+Default: `0 14 * * 5` (weekly) and `0 14 * * *` (daily). Edit `vercel.json` to change:
 
 ```json
 {
@@ -102,6 +122,10 @@ Default: `0 14 * * 5` (Fridays at 14:00 UTC). Edit `vercel.json` to change:
     {
       "path": "/api/generate-blog",
       "schedule": "0 14 * * 5"
+    },
+    {
+      "path": "/api/generate-blog-daily",
+      "schedule": "0 14 * * *"
     }
   ]
 }
@@ -113,9 +137,10 @@ Cron format: `minute hour day-of-month month day-of-week` (0 = Sunday, 5 = Frida
 
 After deploying, you get a **public blog**:
 
-- **`/`** – Homepage with post list
+- **`/`** – Homepage with post list (feed selector when using database + `Feed` property)
 - **`/post/:id`** – Individual post pages (full content from Notion)
-- **`/api/feed`** – RSS 2.0 feed for syndication (Medium, Feedly, etc.)
+- **`/api/blogs`** – List posts (optional `?feed=owner/repo` or `?feed=generic` when using database)
+- **`/api/feed`** – RSS 2.0 feed (optional `?feed=owner/repo` or `?feed=generic`)
 
 **Syndicating:** Medium no longer offers direct RSS import, but you can use IFTTT/Zapier to auto-post from your RSS, or manually import from your public blog URL. Dev.to’s API key is at [Settings → Extensions](https://dev.to/settings/extensions); we can add Dev.to auto-publish in a future update.
 
@@ -124,9 +149,10 @@ After deploying, you get a **public blog**:
 ```
 blog-automation/
 ├── api/
-│   ├── blogs.js           # List blog posts from Notion
+│   ├── blogs.js           # List blog posts from Notion (optional ?feed=)
+│   ├── feeds.js           # List available feeds for selector
 │   ├── post.js            # Fetch single post content
-│   ├── feed.js            # RSS 2.0 feed
+│   ├── feed.js            # RSS 2.0 feed (optional ?feed=)
 │   └── generate-blog.js   # Vercel serverless + cron handler
 ├── config/
 │   └── repos.json         # Repos to track
