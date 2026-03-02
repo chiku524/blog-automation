@@ -233,10 +233,19 @@
       const heading = document.getElementById('posts-heading');
       try {
         const res = await fetch(base() + '/api/blogs' + (getCurrentFeed() ? '?feed=' + encodeURIComponent(getCurrentFeed()) : ''));
-        const data = await res.json();
+        let data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load');
+
+        const curFeed = getCurrentFeed();
+        if (curFeed && Array.isArray(data)) {
+          data = data.filter(function (b) { return (b.feed || '') === curFeed; });
+        }
+
         if (!data.length) {
-          el.innerHTML = '<div class="empty">No posts yet. The first one will appear after the next Friday run.</div>';
+          const msg = curFeed
+            ? 'No posts in this feed yet.'
+            : 'No posts yet. The first one will appear after the next Friday run.';
+          el.innerHTML = '<div class="empty">' + escapeHtml(msg) + '</div>';
           if (heading) heading.style.display = 'none';
           return;
         }
