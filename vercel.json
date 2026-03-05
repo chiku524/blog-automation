@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/generate-blog-daily",
-      "schedule": "0 14 * * *"
+      "schedule": "59 23 * * *"
     }
   ]
 }

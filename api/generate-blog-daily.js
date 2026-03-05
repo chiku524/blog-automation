@@ -1,7 +1,7 @@
 /**
  * Vercel serverless function – generates a daily generic blog post.
- * Uses last 24 hours of activity across all repos; creates one post (Feed=generic).
- * Triggered by cron (every day) or manually with CRON_SECRET.
+ * Uses activity from today (00:00 UTC) across all repos; creates one post (Feed=generic).
+ * Triggered by cron every day at 23:59 UTC (11:59 PM) or manually with CRON_SECRET.
  */
 
 import "dotenv/config";
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
 
     const dayLabel = getDayLabel();
     const since = new Date();
-    since.setDate(since.getDate() - 1);
+    since.setUTCHours(0, 0, 0, 0);
 
     const activity = await getActivityForRepos(
       repos,

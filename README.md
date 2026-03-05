@@ -90,7 +90,7 @@ npm run test
 
 1. Connect this repo to [Vercel](https://vercel.com)
 2. Add all env vars in Project Settings → Environment Variables
-3. Deploy – crons run **every Friday at 14:00 UTC** (weekly posts) and **every day at 14:00 UTC** (daily generic post).
+3. Deploy – crons run **every Friday at 14:00 UTC** (weekly posts) and **every day at 23:59 UTC** (11:59 PM, daily generic post).
 
 To trigger manually via HTTP (e.g. for testing):
 
@@ -112,9 +112,9 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-app.vercel.app/api
 ## Cron Schedule
 
 - **Weekly** (Fridays 14:00 UTC): `/api/generate-blog` – one post per repo + one generic summary (last 7 days).
-- **Daily** (every day 14:00 UTC): `/api/generate-blog-daily` – one generic post from the last 24 hours of activity across all repos.
+- **Daily** (every day 23:59 UTC): `/api/generate-blog-daily` – one generic post with #daily from today’s activity (00:00 UTC to run time) across all repos.
 
-Default: `0 14 * * 5` (weekly) and `0 14 * * *` (daily). Edit `vercel.json` to change:
+Default: `0 14 * * 5` (weekly) and `59 23 * * *` (daily at 11:59 PM UTC). Edit `vercel.json` to change:
 
 ```json
 {
@@ -125,7 +125,7 @@ Default: `0 14 * * 5` (weekly) and `0 14 * * *` (daily). Edit `vercel.json` to c
     },
     {
       "path": "/api/generate-blog-daily",
-      "schedule": "0 14 * * *"
+      "schedule": "59 23 * * *"
     }
   ]
 }
