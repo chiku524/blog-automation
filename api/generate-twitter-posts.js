@@ -54,6 +54,10 @@ export default async function handler(req, res) {
     const results = [];
     for (const account of accounts) {
       const { id, label, envPrefix, projectUrl, projectDescription, owner, repo } = account;
+      if (!envPrefix) {
+        results.push({ id: id || "?", label: label || "?", status: "skipped", reason: "missing envPrefix in config" });
+        continue;
+      }
       const creds = getTwitterCredentials(envPrefix);
       if (!creds) {
         results.push({ id, label, status: "skipped", reason: "missing credentials" });
@@ -114,6 +118,7 @@ export default async function handler(req, res) {
     console.error("Twitter posts error:", err);
     return res.status(500).json({
       error: err.message || "Twitter posts failed",
+      detail: err.stack || undefined,
     });
   }
 }
