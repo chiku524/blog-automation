@@ -59,6 +59,7 @@ Copy `.env.example` to `.env` and fill in your values:
 | `OPENAI_API_KEY` | OpenAI API key for content generation |
 | `CRON_SECRET` | (Optional) Secret to protect the cron endpoint |
 | `DEVTO_API_KEY` | (Optional) Dev.to API key – auto-publish generic post to Dev.to ([get key](https://dev.to/settings/extensions)) |
+| `MEDIUM_API_KEY` | (Optional) Medium Integration token – auto-publish to Medium. *Note: Medium no longer issues new tokens; existing tokens still work.* See [alternatives](#medium-alternatives) below. |
 
 **Notion setup:**
 
@@ -112,21 +113,17 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-app.vercel.app/api
 ## Cron Schedule
 
 - **Weekly** (Fridays 14:00 UTC): `/api/generate-blog` – one post per repo + one generic summary (last 7 days).
-- **Daily** (every day 23:59 UTC): `/api/generate-blog-daily` – one generic post with #daily from today’s activity (00:00 UTC to run time) across all repos.
+- **Daily** (every day 23:59 UTC): `/api/generate-blog-daily` – one generic post with #daily from **that day’s** activity (00:00–23:59 UTC) across all repos. If the cron runs in the first hour of the next UTC day (e.g. 00:01), the post is for the **previous** day so commits match the title.
+- **Twitter** (4× per week: Sun, Mon, Wed, Fri 12:00 UTC): `/api/generate-twitter-posts` – one tweet per configured account (see [Twitter setup](#twitter-setup) below).
 
-Default: `0 14 * * 5` (weekly) and `59 23 * * *` (daily at 11:59 PM UTC). Edit `vercel.json` to change:
+Default: `0 14 * * 5` (weekly), `59 23 * * *` (daily), `0 12 * * 0,1,3,5` (Twitter). Edit `vercel.json` to change:
 
 ```json
 {
   "crons": [
-    {
-      "path": "/api/generate-blog",
-      "schedule": "0 14 * * 5"
-    },
-    {
-      "path": "/api/generate-blog-daily",
-      "schedule": "59 23 * * *"
-    }
+    { "path": "/api/generate-blog", "schedule": "0 14 * * 5" },
+    { "path": "/api/generate-blog-daily", "schedule": "59 23 * * *" },
+    { "path": "/api/generate-twitter-posts", "schedule": "0 12 * * 0,1,3,5" }
   ]
 }
 ```
@@ -142,26 +139,34 @@ After deploying, you get a **public blog**:
 - **`/api/blogs`** – List posts (optional `?feed=owner/repo` or `?feed=generic` when using database)
 - **`/api/feed`** – RSS 2.0 feed (optional `?feed=owner/repo` or `?feed=generic`)
 
-**Syndicating:** Medium no longer offers direct RSS import, but you can use IFTTT/Zapier to auto-post from your RSS, or manually import from your public blog URL. Dev.to’s API key is at [Settings → Extensions](https://dev.to/settings/extensions); we can add Dev.to auto-publish in a future update.
+**Syndicating:** This app can auto-publish the generic post to Dev.to (set `DEVTO_API_KEY`) and to Medium if you have an existing Integration token (`MEDIUM_API_KEY`). Medium no longer issues new API tokens.
+
+<a name="twitter-setup"></a>**Twitter/X:** You can automate 3–4 tweets per week to one or more accounts (each tied to a project). Add accounts in `config/twitter.json` and set env vars per account (see `.env.example`). Each account needs: API Key, API Secret, Access Token, Access Token Secret (OAuth 1.0a user context from the [X Developer Portal](https://developer.x.com)). Set `TWITTER_DEFAULT_MESSAGE` or per-account `{PREFIX}_DEFAULT_MESSAGE` for the cron; or POST a custom message: `curl -X POST -H "Content-Type: application/json" -d '{"message":"Your tweet here"}' "https://your-app.vercel.app/api/generate-twitter-posts?secret=YOUR_CRON_SECRET"`.
+
+<a name="medium-alternatives"></a>**Medium alternatives (no API key):** To get posts to [medium.com/@nico.builds](https://medium.com/@nico.builds) or any Medium profile without a token: (1) Use **IFTTT** or **Zapier** to post from your blog’s RSS feed (`/api/feed` or `/api/feed?feed=generic`) to Medium; (2) use Medium’s **Import a story** (paste your post URL from this blog); or (3) cross-post from Dev.to to Medium via IFTTT if you use Dev.to.
 
 ## Project Structure
 
 ```
 blog-automation/
 ├── api/
-│   ├── blogs.js           # List blog posts from Notion (optional ?feed=)
-│   ├── feeds.js           # List available feeds for selector
-│   ├── post.js            # Fetch single post content
-│   ├── feed.js            # RSS 2.0 feed (optional ?feed=)
-│   └── generate-blog.js   # Vercel serverless + cron handler
+│   ├── blogs.js                  # List blog posts from Notion (optional ?feed=)
+│   ├── feeds.js                  # List available feeds for selector
+│   ├── post.js                   # Fetch single post content
+│   ├── feed.js                   # RSS 2.0 feed (optional ?feed=)
+│   ├── generate-blog.js          # Vercel serverless + cron handler (weekly)
+│   ├── generate-blog-daily.js    # Daily generic post cron
+│   └── generate-twitter-posts.js # Twitter cron (3–4×/week)
 ├── config/
-│   └── repos.json         # Repos to track
+│   ├── repos.json                # Repos to track
+│   └── twitter.json              # Twitter accounts (envPrefix per project)
 ├── lib/
-│   ├── github.js          # Fetch commit activity
-│   ├── ai.js              # Generate post (OpenAI)
-│   ├── notion.js          # Create Notion page
-│   ├── notion-list.js     # List child pages from Notion
-│   └── notion-content.js  # Fetch page content, convert to HTML
+│   ├── github.js                 # Fetch commit activity
+│   ├── ai.js                     # Generate post (OpenAI)
+│   ├── notion.js                 # Create Notion page
+│   ├── notion-list.js            # List child pages from Notion
+│   ├── notion-content.js         # Fetch page content, convert to HTML
+│   └── twitter.js                # Post tweet (X API v2, OAuth 1.0a)
 ├── scripts/
 │   └── generate-blog.js   # CLI runner
 ├── index.html             # Blog homepage

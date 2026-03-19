@@ -1,0 +1,12 @@
+{
+  "defaultTheme": "default",
+  "themes": {
+    "default": { "emoji": "📝", "label": "Default" },
+    "weekly": { "emoji": "📅", "label": "Weekly" },
+    "daily": { "emoji": "☀️", "label": "Daily" },
+    "shipping": { "emoji": "🚀", "label": "Shipping" },
+    "quiet": { "emoji": "😴", "label": "Quiet" },
+    "tech": { "emoji": "🔧", "label": "Tech" },
+    "crypto": { "emoji": "⛓️", "label": "Crypto" }
+  }
+}

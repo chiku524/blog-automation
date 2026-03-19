@@ -1,0 +1,22 @@
+{
+  "accounts": [
+    {
+      "id": "bountyhub",
+      "label": "BountyHub",
+      "envPrefix": "TWITTER_BOUNTYHUB",
+      "projectUrl": "https://bountyhub.tech",
+      "projectDescription": "BountyHub – bounties and rewards for builders",
+      "owner": "chiku524",
+      "repo": "bountyhub"
+    },
+    {
+      "id": "dice-express",
+      "label": "Dice Express",
+      "envPrefix": "TWITTER_DICE_EXPRESS",
+      "projectUrl": "https://dice.express",
+      "projectDescription": "Dice Express – fast, fun, and expressive",
+      "owner": "chiku524",
+      "repo": "dice.express"
+    }
+  ]
+}

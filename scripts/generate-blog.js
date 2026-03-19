@@ -9,10 +9,12 @@ import "dotenv/config";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { getActivityForRepos } from "../lib/github.js";
+import { getActivityForRepos, getWeeklyReportWindow } from "../lib/github.js";
 import { generateBlogPost, generateRepoBlogPost } from "../lib/ai.js";
 import { createNotionPage } from "../lib/notion.js";
+import { getThemeForPost } from "../lib/themes.js";
 import { publishToDevto } from "../lib/devto.js";
+import { publishToMedium } from "../lib/medium.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDryRun = process.argv.includes("--dry-run");
@@ -29,25 +31,13 @@ function getEnvOptional(name) {
   return process.env[name] || null;
 }
 
-function getWeekLabel() {
-  const now = new Date();
-  const lastFriday = new Date(now);
-  const day = now.getDay();
-  const diff = day >= 5 ? day - 5 : day + 2;
-  lastFriday.setDate(now.getDate() - diff);
-  const prevFriday = new Date(lastFriday);
-  prevFriday.setDate(lastFriday.getDate() - 7);
-  const fmt = (d) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return `${fmt(prevFriday)} – ${fmt(lastFriday)}`;
-}
 
-function extractTitle(content) {
+function extractTitle(content, weekLabel) {
   const firstH1 = content.match(/^#\s+(.+)$/m);
   if (firstH1) return firstH1[1].trim();
   const firstH2 = content.match(/^##\s+(.+)$/m);
   if (firstH2) return firstH2[1].trim();
-  return `Weekly Dev Digest – ${getWeekLabel()}`;
+  return `Weekly Dev Digest – ${weekLabel}`;
 }
 
 function repoFeedSlug(repo) {
@@ -65,9 +55,8 @@ async function main() {
     throw new Error("config/repos.json must have at least one repository");
   }
 
-  const weekLabel = getWeekLabel();
-  const since = new Date();
-  since.setDate(since.getDate() - 7);
+  const defaultTheme = config.defaultTheme ?? "default";
+  const { since, weekLabel } = getWeeklyReportWindow();
 
   console.log(`Week: ${weekLabel}`);
   console.log(`Tracking ${repos.length} repos since ${since.toISOString().slice(0, 10)}\n`);
@@ -88,7 +77,7 @@ async function main() {
     console.log("--- DRY RUN ---");
     for (const repo of activity) {
       const content = await generateRepoBlogPost({ repo, weekLabel, apiKey });
-      const title = extractTitle(content);
+      const title = extractTitle(content, weekLabel);
       console.log(`[${repoFeedSlug(repo)}] ${title}`);
     }
     const genericContent = await generateBlogPost({
@@ -96,7 +85,7 @@ async function main() {
       weekLabel,
       apiKey,
     });
-    const genericTitle = extractTitle(genericContent);
+    const genericTitle = extractTitle(genericContent, weekLabel);
     console.log(`[generic] ${genericTitle}\n`);
     console.log("(Not publishing to Notion)");
     return;
@@ -104,10 +93,11 @@ async function main() {
 
   for (const repo of activity) {
     const content = await generateRepoBlogPost({ repo, weekLabel, apiKey });
-    const title = extractTitle(content);
+    const title = extractTitle(content, weekLabel);
     const feedSlug = repoFeedSlug(repo);
     const repoParentId = isDatabase ? parentId : (repo.notion_parent_id || parentId);
 
+    const theme = getThemeForPost({ repo, defaultTheme });
     const page = await createNotionPage({
       apiKey: notionKey,
       parentId: repoParentId,
@@ -115,6 +105,7 @@ async function main() {
       content,
       isDatabase,
       feed: isDatabase ? feedSlug : undefined,
+      theme,
     });
     console.log(`✅ [${feedSlug}] ${title} → ${page.url || page.id}`);
   }
@@ -124,7 +115,7 @@ async function main() {
     weekLabel,
     apiKey,
   });
-  const genericTitle = extractTitle(genericContent);
+  const genericTitle = extractTitle(genericContent, weekLabel);
 
   const genericPage = await createNotionPage({
     apiKey: notionKey,
@@ -133,14 +124,16 @@ async function main() {
     content: genericContent,
     isDatabase,
     feed: isDatabase ? "generic" : undefined,
+    theme: "weekly",
   });
   console.log(`✅ [generic] ${genericTitle} → ${genericPage.url || genericPage.id}`);
+
+  const baseUrl = process.env.SITE_URL || "https://blog-automation.vercel.app";
+  const canonicalUrl = `${baseUrl}/post/${(genericPage.id || "").replace(/-/g, "")}`;
 
   const devtoKey = process.env.DEVTO_API_KEY;
   if (devtoKey) {
     try {
-      const baseUrl = process.env.SITE_URL || "https://blog-automation.vercel.app";
-      const canonicalUrl = `${baseUrl}/post/${(genericPage.id || "").replace(/-/g, "")}`;
       const devto = await publishToDevto({
         apiKey: devtoKey,
         title: genericTitle,
@@ -150,6 +143,23 @@ async function main() {
       console.log(`✅ Published generic to Dev.to: ${devto.url}`);
     } catch (err) {
       console.error("Dev.to publish error:", err.message);
+    }
+  }
+
+  const mediumToken = process.env.MEDIUM_API_KEY;
+  if (mediumToken) {
+    try {
+      const medium = await publishToMedium({
+        apiKey: mediumToken,
+        userId: process.env.MEDIUM_USER_ID || undefined,
+        title: genericTitle,
+        bodyMarkdown: genericContent,
+        canonicalUrl,
+      });
+      const mediumPostUrl = medium?.data?.url || medium?.url;
+      console.log(`✅ Published generic to Medium: ${mediumPostUrl}`);
+    } catch (err) {
+      console.error("Medium publish error:", err.message);
     }
   }
 }
