@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       let message =
         bodyMessage ||
         defaultMessage ||
-        getEnvOptional(`${(envPrefix || "TWITTER").replace(/\s+/g, "_").toUpperCase()}_DEFAULT_MESSAGE");
+        getEnvOptional(`${(envPrefix || "TWITTER").replace(/\s+/g, "_").toUpperCase()}_DEFAULT_MESSAGE`);
 
       if (!message && projectUrl && projectDescription && openaiKey) {
         let recentCommitMessages = [];
